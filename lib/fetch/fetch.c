@@ -377,13 +377,16 @@ FetchStatus fetch_run(Fetch* instance, const FetchRequest* request) {
             if(coarse_timer_is_expired(instance->activity_timer)) {
                 fetch_raise_error(instance, "Inactivity timeout");
                 conn->is_draining = 1;
+                instance->is_running = false;
                 break;
             }
 
             if(instance->is_stop_requested) {
                 FETCH_LOG_I(TAG, "Force stopped");
                 conn->is_draining = 1;
+                instance->is_running = false;
                 FETCH_LOG_I(TAG, "Connection closed");
+                break;
             }
 
             mg_mgr_poll(&instance->mgr, 1000);
