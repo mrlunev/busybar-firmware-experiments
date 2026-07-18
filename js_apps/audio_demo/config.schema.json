@@ -1,0 +1,6 @@
+{
+  "title": "Music Player",
+  "description": "Upload and manage MP3 tracks",
+  "component": "music_player",
+  "fields": []
+}

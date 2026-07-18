@@ -1,0 +1,26 @@
+{
+  "title": "Radio",
+  "description": "Internet radio settings",
+  "layout": "columns",
+  "fields": [
+    {
+      "key": "city",
+      "type": "select",
+      "label": "Default City",
+      "options": [
+        { "value": 1, "label": "Moscow" },
+        { "value": 2, "label": "London" }
+      ],
+      "default": 1
+    },
+    {
+      "key": "volume",
+      "type": "slider",
+      "label": "Default Volume",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 100
+    }
+  ]
+}
