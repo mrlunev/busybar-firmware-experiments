@@ -23,6 +23,8 @@ firmware and FBT build flow:
 - native FBT packaging of `js_apps/` into the device resources.
 
 Notion and its WebSocket/OAuth infrastructure are intentionally not included.
+The fork/upstream boundary and the complete vanilla touchpoint inventory are
+maintained in [FORK_MAINTENANCE.md](FORK_MAINTENANCE.md).
 
 ## Clone
 
@@ -131,8 +133,80 @@ let timer = require("timer");
 
 The available native modules are `audio`, `config`, `display`, `fetch`,
 `fs_extra`, `input`, `json`, `radio`, `settings`, `status`, `storage`,
-`system`, `time` and `timer`. They are firmware bindings, not Node.js modules;
-there is no npm or Node.js standard library.
+`system`, `time`, `timer` and `wifi`. They are firmware bindings, not Node.js
+modules; there is no npm or Node.js standard library.
+
+All volume APIs use a normalized `0..1` value. Input and audio registrations
+return an ID that can be released with `off(id)`:
+
+```javascript
+let input = require("input");
+let audio = require("audio");
+
+let inputId = input.on("ok", "short", function() {});
+input.off(inputId);
+
+let audioId = audio.on("end", function() {});
+audio.off(audioId);
+```
+
+`fetch.get(url, callback)` remains available for existing apps. New code should
+use the structured request API. Only one request may be active at a time; the
+response body is limited to 64 KiB and response headers to 16 KiB. HTTPS uses
+the firmware CA bundle and TLS stack, so server compatibility can vary:
+
+```javascript
+let fetch = require("fetch");
+
+let requestId = fetch.request({
+  url: "https://example.com/data.json",
+  method: "GET",
+  headers: { Accept: "application/json" },
+  onProgress: function(progress) {
+    print(progress.receivedBytes, progress.totalBytes);
+  },
+}, function(response, error) {
+  if (error) {
+    print(error);
+    return;
+  }
+  print(response.status, response.ok, response.body);
+});
+
+// fetch.cancel(requestId);
+```
+
+The `time` binding exposes the configured timezone and DST-aware conversion.
+Timezone arguments use the public names returned by `/api/time/tzlist` (for
+example `London`, not `Europe/London`); `wifi.status()` is read-only:
+
+```javascript
+let time = require("time");
+let wifi = require("wifi");
+
+let london = time.inTimezone(time.now(), "London");
+print(time.timezone(), london.hour, wifi.status().state);
+```
+
+### Runtime limits and failure policy
+
+- JerryScript heap: 256 KiB per app.
+- Host timers: 8.
+- Active input callbacks: 16; queue capacity: 32 events.
+- Built-in module cache: 16; local module cache: 16.
+- Pending immediate-display primitives: 256.
+- Fetch: one in-flight request and a 64 KiB buffered response.
+
+There is no separately enforced JavaScript VM stack limit. The `js_runner`
+native thread has a 24 KiB stack, but that is not a recursion guarantee for
+application code. An uncaught exception from the main script or any timer,
+input, fetch or audio callback is fatal to that application run: the runner
+logs the exception and stack and stops its event loop.
+
+`require("system").runtimeStats()` reports current heap use, timer/input usage,
+dropped input events, callback failures and the enforced fetch limits. Input
+producers are never blocked; queue overflow is counted and logged at a
+rate-limited cadence.
 
 Local JavaScript files can be loaded relative to the current file:
 
