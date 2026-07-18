@@ -95,20 +95,20 @@ static JSValue js_radio_get_stream_name(JSContext* ctx, JSValueConst this_val, i
 static JSValue js_radio_set_volume(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
     UNUSED(this_val);
     if(argc < 1 || !JS_IsNumber(argv[0])) {
-        return JS_ThrowTypeError(ctx, "setVolume expects percent 0-100");
+        return JS_ThrowTypeError(ctx, "setVolume expects a number from 0 to 1");
     }
 
-    double pct = 0.0;
-    JS_ToFloat64(ctx, &pct, argv[0]);
-    if(pct < 0.0) pct = 0.0;
-    if(pct > 100.0) pct = 100.0;
+    double volume = 0.0;
+    if(JS_ToFloat64(ctx, &volume, argv[0])) return JS_EXCEPTION;
+    if(volume < 0.0) volume = 0.0;
+    if(volume > 1.0) volume = 1.0;
 
     RadioStream* rs = js_radio_get_instance();
     if(!rs) {
         return JS_ThrowInternalError(ctx, "radio: out of memory");
     }
 
-    radio_stream_set_volume(rs, (float)(pct / 100.0));
+    radio_stream_set_volume(rs, (float)volume);
     return JS_UNDEFINED;
 }
 

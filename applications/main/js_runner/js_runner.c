@@ -199,11 +199,17 @@ static JSValue js_require(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 static bool js_runner_has_async_work(JsRunner* runner) {
     if(!runner) return false;
 
-    if(runner->input_cb_count > 0) {
-        return true;
+    for(size_t i = 0; i < runner->input_cb_count; i++) {
+        if(!JS_IsUndefined(runner->input_callbacks[i].callback)) {
+            return true;
+        }
     }
 
     if(runner->fetch_state) {
+        return true;
+    }
+
+    if(js_audio_has_subscribers(runner)) {
         return true;
     }
 
@@ -280,6 +286,11 @@ bool js_runner_call_callback(
     }
     // FURI_LOG_D(TAG, "callback end: %s", origin);
     if(JS_IsException(result)) {
+        runner->callback_exception_count++;
+        strlcpy(
+            runner->last_callback_exception,
+            origin ? origin : "callback",
+            sizeof(runner->last_callback_exception));
         js_runner_log_exception(runner, origin);
         runner->running = false;
         furi_event_loop_stop(runner->event_loop);
@@ -314,9 +325,23 @@ static void js_runner_input_queue_callback(FuriEventLoopObject* object, void* co
                runner->input_callbacks[i].type == event.type) {
                 js_runner_invoke_callback(
                     runner, runner->input_callbacks[i].callback, "input callback");
+                if(!runner->running) return;
             }
         }
     }
+}
+
+static bool js_runner_enqueue_input(JsRunner* runner, const InputEvent* event) {
+    if(furi_message_queue_put(runner->input_queue, event, 0) == FuriStatusOk) {
+        return true;
+    }
+
+    const uint32_t dropped =
+        atomic_fetch_add_explicit(&runner->input_drop_count, 1, memory_order_relaxed) + 1;
+    if(dropped == 1 || (dropped & (dropped - 1)) == 0) {
+        FURI_LOG_W(TAG, "Input queue full, dropped %lu event(s)", (unsigned long)dropped);
+    }
+    return false;
 }
 
 static void js_runner_input_pubsub_callback(const void* message, void* context) {
@@ -325,7 +350,7 @@ static void js_runner_input_pubsub_callback(const void* message, void* context) 
     if(runner->widget_active && event->key == InputKeyBack) {
         return;
     }
-    furi_message_queue_put(runner->input_queue, event, 0);
+    js_runner_enqueue_input(runner, event);
 }
 
 static bool js_runner_gui_input_callback(const InputEvent* event, void* context) {
@@ -334,7 +359,7 @@ static bool js_runner_gui_input_callback(const InputEvent* event, void* context)
     JsRunner* runner = context;
 
     if(runner->widget_active && event->key == InputKeyBack && event->type == InputTypeShort) {
-        furi_message_queue_put(runner->input_queue, event, 0);
+        js_runner_enqueue_input(runner, event);
         return true;
     }
 
@@ -361,7 +386,8 @@ static JsRunner* js_runner_alloc(const char* script_path) {
     }
 
     runner->event_loop = furi_event_loop_alloc();
-    runner->input_queue = furi_message_queue_alloc(32, sizeof(InputEvent));
+    runner->input_queue =
+        furi_message_queue_alloc(JS_RUNNER_INPUT_QUEUE_SIZE, sizeof(InputEvent));
     if(!runner->event_loop || !runner->input_queue) {
         js_runner_free(runner);
         return NULL;
@@ -443,7 +469,6 @@ static void js_runner_free(JsRunner* runner) {
     js_radio_cleanup(runner);
     js_settings_cleanup(runner);
     js_config_cleanup(runner);
-    js_anim_cleanup(runner);
     js_fetch_cleanup(runner);
     js_display_cleanup(runner);
 
@@ -528,8 +553,7 @@ int32_t js_runner_app(void* arg) {
         return -1;
     }
 
-    JS_SetMemoryLimit(runner->rt, 256 * 1024);
-    JS_SetMaxStackSize(runner->rt, 16 * 1024);
+    JS_SetMemoryLimit(runner->rt, JS_RUNNER_HEAP_SIZE_BYTES);
     JS_SetInterruptHandler(runner->rt, js_interrupt_handler, runner);
 
     runner->ctx = JS_NewContext(runner->rt);

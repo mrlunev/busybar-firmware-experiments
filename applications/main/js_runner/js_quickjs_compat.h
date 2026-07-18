@@ -19,7 +19,6 @@ typedef int (*JSInterruptHandler)(JSRuntime* rt, void* opaque);
 
 struct JSRuntime {
     size_t memory_limit;
-    size_t stack_limit;
     JSInterruptHandler interrupt_handler;
     void* interrupt_opaque;
 };
@@ -32,13 +31,12 @@ struct JSContext {
 
 #define JS_EVAL_TYPE_GLOBAL 0
 #define JS_UNDEFINED jerry_undefined()
-#define JS_NULL jerry_null()
+#define JS_NULL bsb_jerry_make_null()
 #define JS_EXCEPTION bsb_jerry_throw_error(JERRY_ERROR_COMMON, "Operation failed")
 
 JSRuntime* JS_NewRuntime(void);
 void JS_FreeRuntime(JSRuntime* rt);
 void JS_SetMemoryLimit(JSRuntime* rt, size_t limit);
-void JS_SetMaxStackSize(JSRuntime* rt, size_t limit);
 void JS_SetInterruptHandler(JSRuntime* rt, JSInterruptHandler cb, void* opaque);
 
 JSContext* JS_NewContext(JSRuntime* rt);

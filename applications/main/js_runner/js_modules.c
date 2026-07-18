@@ -39,6 +39,7 @@ extern JSValue js_module_time_create(JSContext* ctx, JsRunner* runner);
 extern JSValue js_module_timer_create(JSContext* ctx, JsRunner* runner);
 extern JSValue js_module_radio_create(JSContext* ctx, JsRunner* runner);
 extern JSValue js_module_config_create(JSContext* ctx, JsRunner* runner);
+extern JSValue js_module_wifi_create(JSContext* ctx, JsRunner* runner);
 
 static const JsModuleDescriptor js_builtin_modules[] = {
     {"audio", js_module_audio_create},
@@ -55,6 +56,7 @@ static const JsModuleDescriptor js_builtin_modules[] = {
     {"system", js_module_system_create},
     {"time", js_module_time_create},
     {"timer", js_module_timer_create},
+    {"wifi", js_module_wifi_create},
 };
 
 static JsBuiltinModule* js_modules_find_builtin(JsBuiltinModule* items, size_t count, const char* key) {

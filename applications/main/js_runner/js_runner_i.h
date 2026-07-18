@@ -2,6 +2,7 @@
 
 #include <furi.h>
 #include <furi_hal.h>
+#include <stdatomic.h>
 #include <storage/storage.h>
 #include <gui/gui.h>
 #include <gui/modules/label.h>
@@ -18,6 +19,9 @@
 #define JS_RUNNER_MAX_INPUT_CBS     16
 #define JS_RUNNER_MAX_MODULE_CACHE  16
 #define JS_RUNNER_MAX_LOCAL_MODULES 16
+#define JS_RUNNER_HEAP_SIZE_BYTES   (256 * 1024u)
+#define JS_RUNNER_INPUT_QUEUE_SIZE  32
+#define JS_RUNNER_FETCH_MAX_BYTES   (64 * 1024u)
 
 typedef struct JsRunner JsRunner;
 typedef struct JsModules JsModules;
@@ -57,6 +61,7 @@ struct JsRunner {
     FuriMessageQueue* input_queue;
     JsInputCallback input_callbacks[JS_RUNNER_MAX_INPUT_CBS];
     size_t input_cb_count;
+    _Atomic uint32_t input_drop_count;
 
     Gui* gui;
     GuiLayer* gui_layer;
@@ -64,10 +69,12 @@ struct JsRunner {
 
     void* display_state;
     void* fetch_state;
-    void* anim_state;
+    void* audio_state;
     void* settings_state;
     void* config_state;
     uint8_t callback_depth;
+    uint32_t callback_exception_count;
+    char last_callback_exception[48];
     bool display_flush_pending;
     bool event_loop_active;
     bool widget_active;
@@ -82,10 +89,10 @@ void js_display_cleanup(JsRunner* runner);
 void js_display_flush(JsRunner* runner);
 void js_timer_start_pending(JsRunner* runner);
 void js_fetch_cleanup(JsRunner* runner);
-void js_anim_cleanup(JsRunner* runner);
 void js_settings_cleanup(JsRunner* runner);
 void js_settings_close(JsRunner* runner);
 bool js_settings_handle_input(JsRunner* runner, const InputEvent* event);
+bool js_audio_has_subscribers(JsRunner* runner);
 void js_audio_cleanup(JsRunner* runner);
 void js_radio_cleanup(JsRunner* runner);
 void js_config_cleanup(JsRunner* runner);

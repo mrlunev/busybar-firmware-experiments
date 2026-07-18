@@ -50,7 +50,6 @@ JSRuntime* JS_NewRuntime(void) {
     JSRuntime* rt = calloc(1, sizeof(JSRuntime));
     if(!rt) return NULL;
     rt->memory_limit = 256 * 1024;
-    rt->stack_limit = 16 * 1024;
     return rt;
 }
 
@@ -60,10 +59,6 @@ void JS_FreeRuntime(JSRuntime* rt) {
 
 void JS_SetMemoryLimit(JSRuntime* rt, size_t limit) {
     if(rt) rt->memory_limit = limit;
-}
-
-void JS_SetMaxStackSize(JSRuntime* rt, size_t limit) {
-    if(rt) rt->stack_limit = limit;
 }
 
 void JS_SetInterruptHandler(JSRuntime* rt, JSInterruptHandler cb, void* opaque) {
