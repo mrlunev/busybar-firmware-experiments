@@ -1,0 +1,10 @@
+App(
+    appid="js_runner",
+    name="JS Runner",
+    apptype=FlipperAppType.APP,
+    order=51,
+    entry_point="js_runner_app",
+    requires=["gui", "storage", "status_lights", "desktop", "input", "time", "audio"],
+    stack_size=24 * 1024,
+    targets=["f20", "f21", "f22"],
+)

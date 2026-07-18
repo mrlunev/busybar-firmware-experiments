@@ -75,6 +75,14 @@ void image_set_opacity(Image* instance, uint8_t opacity) {
     lv_obj_set_style_image_opa(instance->image, opacity, LV_PART_MAIN);
 }
 
+void image_set_scale(Image* instance, uint32_t scale) {
+    furi_check(instance);
+
+    lv_image_set_scale(instance->image, scale);
+    lv_obj_set_style_transform_pivot_x(instance->image, LV_PCT(50), LV_PART_MAIN);
+    lv_obj_set_style_transform_pivot_y(instance->image, LV_PCT(50), LV_PART_MAIN);
+}
+
 // LVGL class descriptor
 
 const lv_obj_class_t image_lvgl_class = {

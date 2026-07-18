@@ -70,6 +70,10 @@ static void label_lvgl_destructor(const lv_obj_class_t* class_p, lv_obj_t* obj) 
     UNUSED(class_p);
 
     Label* instance = (Label*)obj;
+    if(instance->loaded_font) {
+        font_registry_unload_font(instance->font_registry, instance->loaded_font);
+        instance->loaded_font = NULL;
+    }
     furi_string_free(instance->text);
     furi_record_close(RECORD_FONT_REGISTRY);
 }

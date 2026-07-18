@@ -65,6 +65,14 @@ bool image_set_source_no_cache(Image* instance, const char* file_path);
  */
 void image_set_opacity(Image* instance, uint8_t opacity);
 
+/**
+ * @brief Set image scale using LVGL's 256-based scale.
+ *
+ * @param[in,out] instance pointer to the Image instance to be modified
+ * @param[in] scale scale value where 256 means 100%
+ */
+void image_set_scale(Image* instance, uint32_t scale);
+
 #ifdef __cplusplus
 }
 #endif
