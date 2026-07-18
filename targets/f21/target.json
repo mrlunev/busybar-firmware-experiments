@@ -110,6 +110,7 @@
         "lwip",
         "netstat",
         "cjson",
+        "jerryscript",
         "lvgl",
         "network",
         "mongoose",
@@ -137,6 +138,7 @@
         "cli",
         "containers",
         "anim_file",
+        "minimp3",
         "utz",
         "fetch",
         "storage_utils"

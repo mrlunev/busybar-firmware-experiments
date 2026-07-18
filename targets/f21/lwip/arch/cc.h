@@ -33,6 +33,7 @@
 #define __CC_H__
 
 #include <furi.h>
+#include <furi_hal_random.h>
 #include <time.h>
 
 /* define compiler specific symbols */
@@ -71,6 +72,7 @@
 #endif
 
 #define LWIP_PLATFORM_ASSERT(x) furi_crash(x)
+#define LWIP_RAND()             furi_hal_random_get()
 
 #ifdef LWIP_DEBUG
 void lwip_glue_log(const char* fmt, ...);

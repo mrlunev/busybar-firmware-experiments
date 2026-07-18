@@ -1,0 +1,24 @@
+Import("env")
+
+if not env.get("IS_BASE_FIRMWARE", False):
+    Return()
+
+env.Append(
+    CPPPATH=[
+        Dir(".").srcnode(),
+    ],
+)
+
+libenv = env.Clone(FW_LIB_NAME="js_audio_stream")
+libenv.ApplyLibFlags()
+
+sources = [
+    "#/lib/toolbox/mp3_decoder/mp3_decoder.c",
+    "#/lib/toolbox/pcm_output/pcm_output.c",
+    "#/lib/toolbox/radio_stream/radio_stream.c",
+]
+
+objects = libenv.Object(sources)
+lib = libenv.StaticLibrary("${FW_LIB_NAME}", objects)
+libenv.Install("${LIB_DIST_DIR}", lib)
+Return("lib")

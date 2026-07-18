@@ -1,0 +1,78 @@
+Import("env")
+
+if not env.get("IS_BASE_FIRMWARE", False):
+    Return()
+
+LIB_DIR = "jerryscript"
+CORE_DIR = "jerry-core"
+
+env.Append(
+    CPPPATH=[
+        "#/lib/jerryscript",
+        "#/lib/jerryscript/jerry-core/include",
+    ],
+)
+
+libenv = env.Clone(FW_LIB_NAME=LIB_DIR)
+libenv.ApplyLibFlags()
+
+libenv.AppendUnique(
+    CPPDEFINES=[
+        "alloca=__builtin_alloca",
+        "JERRY_ATTR_CONST_DATA=",
+        ("JERRY_EXTERNAL_CONTEXT", 1),
+        ("JERRY_GLOBAL_HEAP_SIZE", 256),
+        ("JERRY_ERROR_MESSAGES", 1),
+    ],
+    CPPPATH=[
+        "#/lib/jerryscript",
+        "#/lib/jerryscript/jerry-core/include",
+        "#/lib/jerryscript/jerry-core/ecma/base",
+        "#/lib/jerryscript/jerry-core/ecma/builtin-objects",
+        "#/lib/jerryscript/jerry-core/ecma/builtin-objects/typedarray",
+        "#/lib/jerryscript/jerry-core/ecma/operations",
+        "#/lib/jerryscript/jerry-core/jcontext",
+        "#/lib/jerryscript/jerry-core/jmem",
+        "#/lib/jerryscript/jerry-core/jrt",
+        "#/lib/jerryscript/jerry-core/lit",
+        "#/lib/jerryscript/jerry-core/parser/js",
+        "#/lib/jerryscript/jerry-core/parser/regexp",
+        "#/lib/jerryscript/jerry-core/vm",
+    ],
+    CPPFLAGS=[
+        "-Wno-deprecated-declarations",
+        "-Wno-error=attributes",
+        "-Wno-double-promotion",
+        "-Wno-extra",
+        "-Wno-format",
+        "-Wno-missing-field-initializers",
+        "-Wno-overflow",
+        "-Wno-redundant-decls",
+        "-Wno-error=write-strings",
+        "-Wno-type-limits",
+        "-Wno-unknown-pragmas",
+        "-Wno-unused-parameter",
+        "-Wno-undef",
+    ],
+)
+
+sources = (
+    libenv.Glob(CORE_DIR + "/api/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/ecma/base/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/ecma/builtin-objects/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/ecma/builtin-objects/typedarray/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/ecma/operations/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/jcontext/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/jmem/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/jrt/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/lit/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/parser/js/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/parser/regexp/*.cpp", source=True)
+    + libenv.Glob(CORE_DIR + "/vm/*.cpp", source=True)
+    + ["jerry_runtime_manager.cpp"]
+)
+
+objects = libenv.Object(sources)
+lib = libenv.StaticLibrary("${FW_LIB_NAME}", objects)
+libenv.Install("${LIB_DIST_DIR}", lib)
+Return("lib")
