@@ -6,8 +6,8 @@ let configModule = require("config");
 let settings = configModule.load();
 let city1Name = settings.city_1_name || "London";
 let city2Name = settings.city_2_name || "Moscow";
-let city1Tz = settings.city_1_tz !== undefined ? settings.city_1_tz : 0;
-let city2Tz = settings.city_2_tz !== undefined ? settings.city_2_tz : 3;
+let city1Tz = typeof settings.city_1_tz === "string" ? settings.city_1_tz : "London";
+let city2Tz = typeof settings.city_2_tz === "string" ? settings.city_2_tz : "Moscow";
 
 let colonVisible = true;
 
@@ -16,17 +16,17 @@ function pad2(value) {
   return str(value);
 }
 
-function getTimeInTimezone(timestamp, offsetHours) {
-  let adjustedTime = timestamp + offsetHours * 3600;
-  let totalHours = Math.floor(adjustedTime / 3600);
-  let hours = totalHours % 24;
-  if (hours < 0) hours += 24;
-  let remainingSeconds = adjustedTime - totalHours * 3600;
-  let minutes = Math.floor(remainingSeconds / 60) % 60;
-
+function getTimeInTimezone(timestamp, timezone, fallback) {
+  let local;
+  try {
+    local = time.inTimezone(timestamp, timezone);
+  } catch (error) {
+    print("world_clock: invalid timezone", timezone, error);
+    local = time.inTimezone(timestamp, fallback);
+  }
   return {
-    hours: hours,
-    minutes: minutes,
+    hours: local.hour,
+    minutes: local.minute,
   };
 }
 
@@ -68,8 +68,8 @@ function drawClockColumn(title, titleColor, x, hourX, colonX, minuteX, value) {
 
 function render() {
   let now = time.now();
-  let time1 = getTimeInTimezone(now, city1Tz);
-  let time2 = getTimeInTimezone(now, city2Tz);
+  let time1 = getTimeInTimezone(now, city1Tz, "London");
+  let time2 = getTimeInTimezone(now, city2Tz, "Moscow");
 
   let label1 = city1Name.toUpperCase();
   let label2 = city2Name.toUpperCase();

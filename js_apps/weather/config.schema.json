@@ -1,5 +1,20 @@
 {
   "title": "Weather",
-  "description": "This app is configured on the device. Use the scroll wheel to switch between weather blocks.",
-  "fields": []
+  "description": "Choose the forecast city here or from the app settings.",
+  "fields": [
+    {
+      "key": "city",
+      "type": "select",
+      "label": "City",
+      "default": 1,
+      "options": [
+        { "value": 1, "label": "Amsterdam" },
+        { "value": 2, "label": "Chicago" },
+        { "value": 3, "label": "London" },
+        { "value": 4, "label": "New York" },
+        { "value": 5, "label": "Paris" },
+        { "value": 6, "label": "Toronto" }
+      ]
+    }
+  ]
 }

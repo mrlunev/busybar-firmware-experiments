@@ -3,8 +3,6 @@ let display = require("display");
 let input = require("input");
 let timer = require("timer");
 let settings = require("settings");
-let storage = require("storage");
-let json = require("json");
 let configModule = require("config");
 let anim = require("./anim");
 
@@ -429,7 +427,7 @@ function resumeFmTimersAfterSettings() {
 }
 
 function applyVolume() {
-  radio.setVolume(config.volume);
+  radio.setVolume(config.volume / 100);
 }
 
 function stopPolling() {

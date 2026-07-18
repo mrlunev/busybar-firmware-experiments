@@ -1,6 +1,6 @@
 let fetch = require("fetch");
 let json = require("json");
-let storage = require("storage");
+let configModule = require("config");
 let timer = require("timer");
 let time = require("time");
 let status = require("status");
@@ -523,7 +523,7 @@ let sys = {
     if (sys.requestDraw) sys.requestDraw();
 
     try {
-      fetch.get(sys.buildUrl(), function(body, err) {
+      fetch.request({ url: sys.buildUrl() }, function(response, err) {
         if (gen !== sys.fetchGen) return;
         sys.loading = false;
 
@@ -534,7 +534,14 @@ let sys = {
           return;
         }
 
-        let result = sys.parseWeather(body);
+        if (!response || !response.ok) {
+          print("weather HTTP error", response ? response.status : 0);
+          sys.handleFetchFailure();
+          if (sys.requestDraw) sys.requestDraw();
+          return;
+        }
+
+        let result = sys.parseWeather(response.body);
         if (result) {
           sys.hourlyTemps = result.hourly;
           sys.initHour = result.initHour;
@@ -567,7 +574,7 @@ let sys = {
         if (sys.requestDraw) sys.requestDraw();
       });
     } catch (e) {
-      print("weather: fetch.get error", e);
+      print("weather: fetch.request error", e);
       sys.loading = false;
       sys.handleFetchFailure();
       if (sys.requestDraw) sys.requestDraw();
@@ -576,15 +583,10 @@ let sys = {
 
   loadConfig: function() {
     try {
-      if (storage.exists("config.json")) {
-        let raw = storage.read("config.json");
-        if (raw) {
-          let cfg = json.parse(raw);
-          if (cfg && cfg.city) {
-            if (cfg.city >= 1 && cfg.city <= sys.cities.length) {
-              sys.config.city = cfg.city;
-            }
-          }
+      let cfg = configModule.load();
+      if (cfg && cfg.city) {
+        if (cfg.city >= 1 && cfg.city <= sys.cities.length) {
+          sys.config.city = cfg.city;
         }
       }
     } catch (e) {
@@ -595,7 +597,7 @@ let sys = {
 
   saveConfig: function() {
     try {
-      storage.write("config.json", json.stringify(sys.config));
+      configModule.set("city", sys.config.city);
     } catch (e) {}
   },
 };
