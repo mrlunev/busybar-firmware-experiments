@@ -29,6 +29,11 @@ export const useTabStore = defineStore('tabs', () => {
       value: 'settings'
     },
     {
+      label: 'Apps',
+      icon: 'i-bi-apps',
+      value: 'apps'
+    },
+    {
       label: 'Draw tool',
       icon: 'i-bi-palette',
       value: 'draw-tool'
