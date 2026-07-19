@@ -1,11 +1,19 @@
 import { defineStore } from 'pinia';
 
+export type AppConfigValue = string | number | boolean | null;
+
 export interface SchemaFieldOption {
-  value: string;
+  value: Exclude<AppConfigValue, null>;
   label: string;
 }
 
-export type AppConfigValue = string | number | boolean | null;
+export interface SchemaFieldOptionsSource {
+  endpoint: string;
+  itemsPath?: string;
+  valueKey?: string;
+  labelKey?: string;
+  labelTemplate?: string;
+}
 
 export interface SchemaField {
   key: string;
@@ -20,6 +28,7 @@ export interface SchemaField {
   step?: number;
   default?: AppConfigValue;
   options?: SchemaFieldOption[];
+  optionsSource?: SchemaFieldOptionsSource;
 }
 
 export interface AppSchema {
@@ -41,6 +50,42 @@ export interface DiscoveredApp {
 
 const APPS_ROOT = '/ext/apps';
 const SKIP_APP_IDS = new Set<string>([]);
+
+type OptionsSourceCache = Map<string, Promise<unknown>>;
+
+function isRecord (value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getValueAtPath (value: unknown, path: string): unknown {
+  let current = value;
+  for (const key of path.split('.').filter(Boolean)) {
+    if (!isRecord(current)) {
+      return undefined;
+    }
+    current = current[key];
+  }
+  return current;
+}
+
+function isOptionValue (value: unknown): value is Exclude<AppConfigValue, null> {
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+}
+
+function formatOptionLabel (
+  item: Record<string, unknown>,
+  source: SchemaFieldOptionsSource,
+  fallback: Exclude<AppConfigValue, null>
+): string {
+  if (!source.labelTemplate) {
+    return String(fallback);
+  }
+
+  return source.labelTemplate.replace(/\{([^{}]+)\}/g, (placeholder, path: string) => {
+    const value = getValueAtPath(item, path);
+    return isOptionValue(value) ? String(value) : placeholder;
+  });
+}
 
 export const useAppConfigStore = defineStore('appConfigStore', () => {
   const apiStore = useApiStore();
@@ -73,6 +118,60 @@ export const useAppConfigStore = defineStore('appConfigStore', () => {
     }
   }
 
+  async function resolveSchemaOptions (
+    schema: AppSchema,
+    cache: OptionsSourceCache
+  ): Promise<AppSchema> {
+    const fields = await Promise.all(schema.fields.map(async field => {
+      const source = field.optionsSource;
+      if (!source) {
+        return field;
+      }
+
+      if (!source.endpoint.startsWith('/api/')) {
+        return field;
+      }
+
+      try {
+        let request = cache.get(source.endpoint);
+        if (!request) {
+          request = apiStore.apiRequest<unknown>(source.endpoint);
+          cache.set(source.endpoint, request);
+        }
+
+        const response = await request;
+        const items = getValueAtPath(response, source.itemsPath ?? 'list');
+        if (!Array.isArray(items)) {
+          return field;
+        }
+
+        const valueKey = source.valueKey ?? 'value';
+        const labelKey = source.labelKey ?? 'label';
+        const options: SchemaFieldOption[] = [];
+        for (const item of items) {
+          if (!isRecord(item)) {
+            continue;
+          }
+
+          const value = item[valueKey];
+          const label = item[labelKey];
+          if (isOptionValue(value) && (source.labelTemplate || isOptionValue(label))) {
+            options.push({
+              value,
+              label: formatOptionLabel(item, source, isOptionValue(label) ? label : value)
+            });
+          }
+        }
+
+        return { ...field, options };
+      } catch {
+        return field;
+      }
+    }));
+
+    return { ...schema, fields };
+  }
+
   function buildDefaults (schema: AppSchema): Record<string, AppConfigValue> {
     const defaults: Record<string, AppConfigValue> = {};
     for (const field of schema.fields) {
@@ -81,6 +180,24 @@ export const useAppConfigStore = defineStore('appConfigStore', () => {
       }
     }
     return defaults;
+  }
+
+  function normalizeSelectValues (
+    schema: AppSchema,
+    config: Record<string, AppConfigValue>
+  ): Record<string, AppConfigValue> {
+    const normalized = { ...config };
+    for (const field of schema.fields) {
+      if (
+        field.type === 'select'
+        && field.options?.length
+        && !field.options.some(option => option.value === normalized[field.key])
+        && field.default !== undefined
+      ) {
+        normalized[field.key] = field.default;
+      }
+    }
+    return normalized;
   }
 
   async function discoverApps () {
@@ -93,6 +210,7 @@ export const useAppConfigStore = defineStore('appConfigStore', () => {
       const dirs = listing.list.filter(item => item.type === 'dir' && !SKIP_APP_IDS.has(item.name));
 
       const discovered: DiscoveredApp[] = [];
+      const optionsSourceCache: OptionsSourceCache = new Map();
 
       await Promise.all(dirs.map(async dir => {
         const appId = dir.name;
@@ -112,6 +230,7 @@ export const useAppConfigStore = defineStore('appConfigStore', () => {
         if (!schema.fields || !Array.isArray(schema.fields)) {
           return;
         }
+        schema = await resolveSchemaOptions(schema, optionsSourceCache);
 
         let name = appId;
         const appJsonText = await readStorageFile(`${basePath}/app.json`);
@@ -138,6 +257,7 @@ export const useAppConfigStore = defineStore('appConfigStore', () => {
             // Use schema defaults.
           }
         }
+        config = normalizeSelectValues(schema, config);
 
         discovered.push({
           id: appId,

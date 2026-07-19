@@ -24,60 +24,26 @@
       "type": "select",
       "label": "City 1 Timezone",
       "default": "London",
-      "options": [
-        { "value": "Anchorage", "label": "Anchorage" },
-        { "value": "Chicago", "label": "Chicago" },
-        { "value": "Denver", "label": "Denver" },
-        { "value": "Los Angeles", "label": "Los Angeles" },
-        { "value": "New York", "label": "New York" },
-        { "value": "Sao Paulo", "label": "São Paulo" },
-        { "value": "Almaty", "label": "Almaty" },
-        { "value": "Bangkok", "label": "Bangkok" },
-        { "value": "Dubai", "label": "Dubai" },
-        { "value": "Delhi", "label": "Delhi" },
-        { "value": "Beijing", "label": "Beijing" },
-        { "value": "Tokyo", "label": "Tokyo" },
-        { "value": "Sydney", "label": "Sydney" },
-        { "value": "Universal", "label": "UTC" },
-        { "value": "Amsterdam", "label": "Amsterdam" },
-        { "value": "Berlin", "label": "Berlin" },
-        { "value": "Helsinki", "label": "Helsinki" },
-        { "value": "London", "label": "London" },
-        { "value": "Moscow", "label": "Moscow" },
-        { "value": "Rome", "label": "Rome" },
-        { "value": "Auckland", "label": "Auckland" },
-        { "value": "Honolulu", "label": "Honolulu" }
-      ]
+      "optionsSource": {
+        "endpoint": "/api/time/tzlist",
+        "itemsPath": "list",
+        "valueKey": "name",
+        "labelKey": "name",
+        "labelTemplate": "UTC{offset}, {name}"
+      }
     },
     {
       "key": "city_2_tz",
       "type": "select",
       "label": "City 2 Timezone",
       "default": "Moscow",
-      "options": [
-        { "value": "Anchorage", "label": "Anchorage" },
-        { "value": "Chicago", "label": "Chicago" },
-        { "value": "Denver", "label": "Denver" },
-        { "value": "Los Angeles", "label": "Los Angeles" },
-        { "value": "New York", "label": "New York" },
-        { "value": "Sao Paulo", "label": "São Paulo" },
-        { "value": "Almaty", "label": "Almaty" },
-        { "value": "Bangkok", "label": "Bangkok" },
-        { "value": "Dubai", "label": "Dubai" },
-        { "value": "Delhi", "label": "Delhi" },
-        { "value": "Beijing", "label": "Beijing" },
-        { "value": "Tokyo", "label": "Tokyo" },
-        { "value": "Sydney", "label": "Sydney" },
-        { "value": "Universal", "label": "UTC" },
-        { "value": "Amsterdam", "label": "Amsterdam" },
-        { "value": "Berlin", "label": "Berlin" },
-        { "value": "Helsinki", "label": "Helsinki" },
-        { "value": "London", "label": "London" },
-        { "value": "Moscow", "label": "Moscow" },
-        { "value": "Rome", "label": "Rome" },
-        { "value": "Auckland", "label": "Auckland" },
-        { "value": "Honolulu", "label": "Honolulu" }
-      ]
+      "optionsSource": {
+        "endpoint": "/api/time/tzlist",
+        "itemsPath": "list",
+        "valueKey": "name",
+        "labelKey": "name",
+        "labelTemplate": "UTC{offset}, {name}"
+      }
     }
   ]
 }
