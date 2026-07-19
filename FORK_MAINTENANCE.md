@@ -23,6 +23,8 @@ New code belongs under the existing fork-owned roots:
 - `js_apps/`
 - `lib/jerryscript/`
 - `lib/minimp3/`
+- `lib/toolbox/mp3_decoder/`
+- `lib/toolbox/pcm_output/`
 - `lib/toolbox/radio_stream/`
 - `assets/frontend/components/Tab/Apps/`
 - `assets/frontend/stores/appConfigStore.ts`

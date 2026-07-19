@@ -92,6 +92,45 @@ static JSValue js_radio_get_stream_name(JSContext* ctx, JSValueConst this_val, i
     return JS_NewString(ctx, name ? name : "");
 }
 
+static JSValue js_radio_status(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    UNUSED(this_val);
+    UNUSED(argc);
+    UNUSED(argv);
+
+    JSValue result = JS_NewObject(ctx);
+    if(!radio_instance) {
+        JS_SetPropertyStr(ctx, result, "playing", JS_NewBool(ctx, false));
+        JS_SetPropertyStr(ctx, result, "outputActive", JS_NewBool(ctx, false));
+        JS_SetPropertyStr(ctx, result, "buffering", JS_NewBool(ctx, false));
+        JS_SetPropertyStr(ctx, result, "dataAgeMs", JS_NULL);
+        JS_SetPropertyStr(ctx, result, "audioAgeMs", JS_NULL);
+        JS_SetPropertyStr(ctx, result, "underruns", JS_NewInt32(ctx, 0));
+        JS_SetPropertyStr(ctx, result, "pcmSamples", JS_NewInt32(ctx, 0));
+        JS_SetPropertyStr(ctx, result, "decoderBytes", JS_NewInt32(ctx, 0));
+        return result;
+    }
+
+    RadioStreamStats stats;
+    radio_stream_get_stats(radio_instance, &stats);
+    JS_SetPropertyStr(ctx, result, "playing", JS_NewBool(ctx, stats.playing));
+    JS_SetPropertyStr(ctx, result, "outputActive", JS_NewBool(ctx, stats.output_active));
+    JS_SetPropertyStr(ctx, result, "buffering", JS_NewBool(ctx, stats.buffering));
+    JS_SetPropertyStr(
+        ctx,
+        result,
+        "dataAgeMs",
+        stats.has_data ? JS_NewFloat64(ctx, stats.data_age_ms) : JS_NULL);
+    JS_SetPropertyStr(
+        ctx,
+        result,
+        "audioAgeMs",
+        stats.has_audio ? JS_NewFloat64(ctx, stats.audio_age_ms) : JS_NULL);
+    JS_SetPropertyStr(ctx, result, "underruns", JS_NewFloat64(ctx, stats.underrun_count));
+    JS_SetPropertyStr(ctx, result, "pcmSamples", JS_NewInt32(ctx, stats.pcm_samples));
+    JS_SetPropertyStr(ctx, result, "decoderBytes", JS_NewInt32(ctx, stats.decoder_bytes));
+    return result;
+}
+
 static JSValue js_radio_set_volume(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
     UNUSED(this_val);
     if(argc < 1 || !JS_IsNumber(argv[0])) {
@@ -123,6 +162,7 @@ JSValue js_module_radio_create(JSContext* ctx, JsRunner* runner) {
     JS_SetPropertyStr(ctx, obj, "getTitle", JS_NewCFunction(ctx, js_radio_get_title, "getTitle", 0));
     JS_SetPropertyStr(
         ctx, obj, "getStreamName", JS_NewCFunction(ctx, js_radio_get_stream_name, "getStreamName", 0));
+    JS_SetPropertyStr(ctx, obj, "status", JS_NewCFunction(ctx, js_radio_status, "status", 0));
     return obj;
 }
 

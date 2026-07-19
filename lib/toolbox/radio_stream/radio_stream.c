@@ -34,6 +34,8 @@ struct RadioStream {
     float volume;
     _Atomic bool playing;
     _Atomic bool stop_requested;
+    _Atomic uint32_t last_data_tick;
+    _Atomic uint32_t last_audio_tick;
     bool pcm_started;
 
     FuriThread* net_thread;
@@ -57,14 +59,16 @@ static bool radio_resolve_hostname(const char* host, ip_addr_t* address) {
     return netconn_gethostbyname(host, address) == ERR_OK;
 }
 
-static void radio_decode_and_output(RadioStream* rs) {
+static void radio_decode_and_output(RadioStream* rs, bool drain) {
     while(true) {
         size_t out_free = pcm_output_free_space(rs->output);
         if(out_free < 1152) break;
 
         size_t cap = (out_free < MP3_DECODER_MAX_OUTPUT_SAMPLES)
             ? out_free : MP3_DECODER_MAX_OUTPUT_SAMPLES;
-        size_t samples = mp3_decoder_decode(rs->decoder, rs->decode_buf, cap);
+        size_t samples = drain ?
+            mp3_decoder_drain(rs->decoder, rs->decode_buf, cap) :
+            mp3_decoder_decode(rs->decoder, rs->decode_buf, cap);
         if(samples == 0) break;
 
         if(rs->volume < 1.0f) {
@@ -73,7 +77,9 @@ static void radio_decode_and_output(RadioStream* rs) {
             }
         }
 
-        pcm_output_write(rs->output, rs->decode_buf, samples);
+        if(pcm_output_write(rs->output, rs->decode_buf, samples) > 0) {
+            rs->last_audio_tick = furi_get_tick();
+        }
     }
 }
 
@@ -84,7 +90,7 @@ static void radio_on_data(uint8_t* data, size_t data_size, void* context) {
     while(offset < data_size && !rs->stop_requested) {
         size_t space = mp3_decoder_space(rs->decoder);
         if(space == 0) {
-            radio_decode_and_output(rs);
+            radio_decode_and_output(rs, false);
             space = mp3_decoder_space(rs->decoder);
             if(space == 0) {
                 furi_delay_ms(5);
@@ -98,7 +104,7 @@ static void radio_on_data(uint8_t* data, size_t data_size, void* context) {
         mp3_decoder_feed(rs->decoder, data + offset, chunk);
         offset += chunk;
 
-        radio_decode_and_output(rs);
+        radio_decode_and_output(rs, false);
     }
 }
 
@@ -508,7 +514,7 @@ connect_url:
             }
             if(sel == 0) {
                 total_sel_timeouts++;
-                if(headers_done) radio_decode_and_output(rs);
+                if(headers_done) radio_decode_and_output(rs, false);
                 furi_thread_yield();
                 continue;
             }
@@ -524,14 +530,19 @@ connect_url:
             }
 
             last_data_tick = furi_get_tick();
+            rs->last_data_tick = last_data_tick;
             total_recv += (uint32_t)n;
 
             /* Periodic stats every 5 seconds */
             if(last_data_tick - last_stats_tick > 5000) {
-                FURI_LOG_I(TAG, "Net: total=%luKB dec_sp=%zu pcm_f=%zu",
-                           (unsigned long)(total_recv / 1024),
-                           mp3_decoder_space(rs->decoder),
-                           pcm_output_free_space(rs->output));
+                FURI_LOG_I(
+                    TAG,
+                    "Net: total=%luKB dec=%zu pcm=%zu buf=%u und=%lu",
+                    (unsigned long)(total_recv / 1024),
+                    mp3_decoder_buffered(rs->decoder),
+                    pcm_output_available(rs->output),
+                    pcm_output_is_buffering(rs->output),
+                    (unsigned long)pcm_output_underrun_count(rs->output));
                 last_stats_tick = last_data_tick;
             }
 
@@ -636,7 +647,7 @@ connect_url:
                 radio_on_icy_stream(rs, data, data_len);
             }
 
-            radio_decode_and_output(rs);
+            radio_decode_and_output(rs, false);
             furi_thread_yield();
         }
         FURI_LOG_I(TAG, "Net: loop done (recv=%luKB, timeouts=%lu)",
@@ -666,6 +677,7 @@ static int32_t radio_file_thread(void* context) {
     RadioStream* rs = context;
 
     pcm_output_start(rs->output);
+    pcm_output_set_rebuffer_enabled(rs->output, false);
     rs->pcm_started = true;
 
     Storage* storage = furi_record_open(RECORD_STORAGE);
@@ -708,7 +720,7 @@ static int32_t radio_file_thread(void* context) {
             }
         }
 
-        radio_decode_and_output(rs);
+        radio_decode_and_output(rs, eof);
 
         if(eof && mp3_decoder_buffered(rs->decoder) < 4) {
             FURI_LOG_I(TAG, "File: all data decoded");
@@ -789,6 +801,8 @@ bool radio_stream_play(RadioStream* rs, const char* url) {
     mp3_decoder_reset(rs->decoder);
     rs->stop_requested = false;
     rs->playing = true;
+    rs->last_data_tick = 0;
+    rs->last_audio_tick = 0;
     rs->pcm_started = false;
 
     rs->icy_metaint = 0;
@@ -822,6 +836,8 @@ bool radio_stream_play_file(RadioStream* rs, const char* path) {
     mp3_decoder_reset(rs->decoder);
     rs->stop_requested = false;
     rs->playing = true;
+    rs->last_data_tick = 0;
+    rs->last_audio_tick = 0;
     rs->pcm_started = false;
 
     rs->net_thread = furi_thread_alloc_ex("RadioFile", RS_FILE_STACK_SIZE, radio_file_thread, rs);
@@ -867,6 +883,27 @@ void radio_stream_stop(RadioStream* rs) {
 bool radio_stream_is_playing(RadioStream* rs) {
     furi_check(rs);
     return rs->playing && pcm_output_is_active(rs->output);
+}
+
+void radio_stream_get_stats(RadioStream* rs, RadioStreamStats* stats) {
+    furi_check(rs);
+    furi_check(stats);
+
+    const uint32_t now = furi_get_tick();
+    const uint32_t last_data_tick = rs->last_data_tick;
+    const uint32_t last_audio_tick = rs->last_audio_tick;
+
+    memset(stats, 0, sizeof(RadioStreamStats));
+    stats->playing = rs->playing;
+    stats->output_active = pcm_output_is_active(rs->output);
+    stats->buffering = pcm_output_is_buffering(rs->output);
+    stats->has_data = last_data_tick != 0;
+    stats->has_audio = last_audio_tick != 0;
+    stats->data_age_ms = stats->has_data ? now - last_data_tick : UINT32_MAX;
+    stats->audio_age_ms = stats->has_audio ? now - last_audio_tick : UINT32_MAX;
+    stats->underrun_count = pcm_output_underrun_count(rs->output);
+    stats->pcm_samples = (uint32_t)pcm_output_available(rs->output);
+    stats->decoder_bytes = (uint32_t)mp3_decoder_buffered(rs->decoder);
 }
 
 void radio_stream_set_volume(RadioStream* rs, float volume) {

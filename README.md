@@ -188,6 +188,11 @@ let london = time.inTimezone(time.now(), "London");
 print(time.timezone(), london.hour, wifi.status().state);
 ```
 
+`radio.status()` reports the native stream state, PCM rebuffering, the age of
+the latest network/audio data, underrun count and current MP3/PCM buffer
+occupancy. The bundled FM Radio app uses it to detect a genuinely stalled
+stream without restarting on a short recoverable network gap.
+
 ### Runtime limits and failure policy
 
 - JerryScript heap: 256 KiB per app.

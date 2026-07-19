@@ -30,6 +30,12 @@ void mp3_decoder_feed(Mp3Decoder* dec, const uint8_t* data, size_t size);
  */
 size_t mp3_decoder_decode(Mp3Decoder* dec, int16_t* out_buf, size_t out_buf_capacity);
 
+/**
+ * Decode remaining buffered data without the streaming sync cushion.
+ * Use only after the input reached EOF.
+ */
+size_t mp3_decoder_drain(Mp3Decoder* dec, int16_t* out_buf, size_t out_buf_capacity);
+
 /** How many compressed bytes are buffered */
 size_t mp3_decoder_buffered(Mp3Decoder* dec);
 

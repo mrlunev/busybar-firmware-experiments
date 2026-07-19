@@ -4,6 +4,7 @@
 #include <furi_hal_sai.h>
 #include <audio/audio.h>
 #include <stdlib.h>
+#include <stdatomic.h>
 #include <string.h>
 
 #define TAG "PcmOut"
@@ -13,7 +14,8 @@
 /* Larger ring + higher prefill: absorb TCP/decode jitter at stream start without
  * starving SAI (see FM Radio). Cost: ~+16 KiB vs original 16k-sample ring. */
 #define PCM_RING_SAMPLES       24576
-#define PCM_PREFILL_SAMPLES    8192
+#define PCM_PREFILL_SAMPLES    16384
+#define PCM_REBUFFER_SAMPLES   16384
 
 struct PcmOutput {
     int16_t dma_buffer[PCM_DMA_BUFFER_SAMPLES];
@@ -22,6 +24,9 @@ struct PcmOutput {
     volatile uint32_t pcm_rd;
     bool sai_started;
     bool prefilled;
+    _Atomic bool rebuffer_enabled;
+    _Atomic bool rebuffering;
+    _Atomic uint32_t underrun_count;
     int16_t underrun_hold;
 };
 
@@ -54,6 +59,13 @@ static void ring_read_to_buf(PcmOutput* out, int16_t* dst, uint32_t count) {
     out->pcm_rd = rd;
 }
 
+static void pcm_fill_hold(PcmOutput* out, int16_t* dst, uint32_t count) {
+    const int16_t pad = out->underrun_hold;
+    for(uint32_t i = 0; i < count; i++) {
+        dst[i] = pad;
+    }
+}
+
 static void pcm_sai_callback(FuriHalSaiEvent event, void* context) {
     PcmOutput* out = context;
     int16_t* dst = (event == FuriHalSaiEventHalfTransfer)
@@ -62,25 +74,41 @@ static void pcm_sai_callback(FuriHalSaiEvent event, void* context) {
 
     const uint32_t need = PCM_DMA_HALF;
     uint32_t avail = ring_available(out);
+    const bool rebuffer_enabled = out->rebuffer_enabled;
+    if(rebuffer_enabled && out->rebuffering) {
+        if(avail < PCM_REBUFFER_SAMPLES) {
+            pcm_fill_hold(out, dst, need);
+            return;
+        }
+        out->rebuffering = false;
+    } else if(!rebuffer_enabled) {
+        out->rebuffering = false;
+    }
+
     if(avail >= need) {
         ring_read_to_buf(out, dst, need);
         out->underrun_hold = dst[need - 1];
         return;
     }
-    if(avail > 0) {
-        ring_read_to_buf(out, dst, avail);
-        int16_t pad = dst[avail - 1];
-        for(uint32_t i = avail; i < need; i++) {
-            dst[i] = pad;
+
+    if(!rebuffer_enabled) {
+        if(avail > 0) {
+            ring_read_to_buf(out, dst, avail);
+            out->underrun_hold = dst[avail - 1];
+            for(uint32_t i = avail; i < need; i++) {
+                dst[i] = out->underrun_hold;
+            }
+        } else {
+            pcm_fill_hold(out, dst, need);
         }
-        out->underrun_hold = pad;
         return;
     }
-    /* Ring empty: hold last sample instead of silence to reduce zipper/flutter. */
-    int16_t pad = out->underrun_hold;
-    for(uint32_t i = 0; i < need; i++) {
-        dst[i] = pad;
-    }
+
+    /* Preserve any remaining samples and wait for a real cushion. Consuming each
+     * small refill immediately keeps a starved stream in permanent burst mode. */
+    out->rebuffering = true;
+    out->underrun_count++;
+    pcm_fill_hold(out, dst, need);
 }
 
 PcmOutput* pcm_output_alloc(void) {
@@ -117,10 +145,19 @@ void pcm_output_start(PcmOutput* out) {
     out->pcm_rd = 0;
     out->sai_started = false;
     out->prefilled = false;
+    out->rebuffer_enabled = true;
+    out->rebuffering = false;
+    out->underrun_count = 0;
     out->underrun_hold = 0;
     memset(out->dma_buffer, 0, sizeof(out->dma_buffer));
 
     FURI_LOG_I(TAG, "Started");
+}
+
+void pcm_output_set_rebuffer_enabled(PcmOutput* out, bool enabled) {
+    if(!out) return;
+    out->rebuffer_enabled = enabled;
+    if(!enabled) out->rebuffering = false;
 }
 
 void pcm_output_stop(PcmOutput* out) {
@@ -135,6 +172,7 @@ void pcm_output_stop(PcmOutput* out) {
     furi_hal_sai_disable_amplifier();
 
     out->prefilled = false;
+    out->rebuffering = false;
 }
 
 static void pcm_output_try_start_sai(PcmOutput* out) {
@@ -184,4 +222,12 @@ size_t pcm_output_available(PcmOutput* out) {
 
 bool pcm_output_is_active(PcmOutput* out) {
     return out && out->sai_started;
+}
+
+bool pcm_output_is_buffering(PcmOutput* out) {
+    return out && out->rebuffering;
+}
+
+uint32_t pcm_output_underrun_count(PcmOutput* out) {
+    return out ? out->underrun_count : 0;
 }

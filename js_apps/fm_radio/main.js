@@ -287,6 +287,10 @@ let CITIES = [
 let VOLUME_STEP_PCT = 5;
 /** Включить лог каждого тика poll (дорого на устройстве). */
 let DEBUG_FM_POLL = false;
+/** Перезапуск потока, если декодированный звук не поступает дольше этого времени. */
+let RADIO_STALL_TIMEOUT_MS = 6000;
+/** Допустимое непрерывное восстановление PCM-буфера при poll каждые 0.5 с. */
+let RADIO_BUFFERING_TIMEOUT_POLLS = 12;
 /** Задержка перед записью config на flash после смены громкости (сек). */
 let VOLUME_SAVE_DEBOUNCE_S = 0.4;
 
@@ -300,6 +304,8 @@ let focus = "fm";
 let state = "idle";
 let pollId = null;
 let pollCount = 0;
+let bufferingPollCount = 0;
+let lastUnderrunCount = 0;
 let POLL_TIMEOUT = 30;
 let inSettings = false;
 let trackTitle = "";
@@ -421,6 +427,7 @@ function resumeFmTimersAfterSettings() {
   if (state === "connecting") {
     startPolling();
   } else if (state === "playing") {
+    startPolling();
     startTitlePolling();
     startPlayIconAnim();
   }
@@ -436,6 +443,31 @@ function stopPolling() {
     pollId = null;
   }
   pollCount = 0;
+  bufferingPollCount = 0;
+}
+
+function restartStreamAfterFailure(reason) {
+  print("[FM] auto-reconnect: " + reason);
+  stopTitlePolling();
+  stopPlayIconAnim();
+  trackTitle = "";
+  streamNameCache = "";
+  radio.stop();
+
+  state = "connecting";
+  pollCount = 0;
+  bufferingPollCount = 0;
+  lastUnderrunCount = 0;
+  render();
+  applyVolume();
+
+  let ok = radio.play(currentStation().url);
+  print("[FM] auto-reconnect play()=" + ok);
+  if (!ok) {
+    state = "error";
+    stopPolling();
+    render();
+  }
 }
 
 function startPolling() {
@@ -445,8 +477,16 @@ function startPolling() {
     if (inSettings) return;
     pollCount = pollCount + 1;
     let isP = radio.isPlaying();
+    let radioStatus = null;
+    try {
+      radioStatus = radio.status();
+    } catch (e) {
+      print("[FM] radio.status error: " + str(e));
+    }
     if (DEBUG_FM_POLL) {
-      print("[FM] poll #" + pollCount + ": isPlaying=" + isP + " state=" + state);
+      print("[FM] poll #" + pollCount + ": isPlaying=" + isP + " state=" + state +
+        " buffering=" + (radioStatus ? radioStatus.buffering : false) +
+        " audioAgeMs=" + (radioStatus ? radioStatus.audioAgeMs : null));
     }
 
     if (state === "connecting") {
@@ -457,8 +497,10 @@ function startPolling() {
 
     if (state === "connecting" && isP) {
       state = "playing";
+      pollCount = 0;
+      bufferingPollCount = 0;
+      lastUnderrunCount = radioStatus ? radioStatus.underruns : 0;
       refreshStreamNameFromRadio();
-      stopPolling();
       startTitlePolling();
       startPlayIconAnim();
       render();
@@ -477,13 +519,32 @@ function startPolling() {
     }
 
     if (state === "playing" && !isP) {
-      state = "idle";
-      stopPolling();
-      stopTitlePolling();
-      stopPlayIconAnim();
-      trackTitle = "";
-      streamNameCache = "";
-      render();
+      restartStreamAfterFailure("native stream stopped");
+      return;
+    }
+
+    if (state === "playing" && radioStatus) {
+      if (radioStatus.underruns > lastUnderrunCount) {
+        lastUnderrunCount = radioStatus.underruns;
+        print("[FM] PCM underrun #" + lastUnderrunCount);
+      }
+
+      if (radioStatus.buffering) {
+        bufferingPollCount = bufferingPollCount + 1;
+      } else {
+        bufferingPollCount = 0;
+      }
+
+      let audioStalled =
+        typeof radioStatus.audioAgeMs === "number" &&
+        radioStatus.audioAgeMs >= RADIO_STALL_TIMEOUT_MS;
+      if (audioStalled || bufferingPollCount >= RADIO_BUFFERING_TIMEOUT_POLLS) {
+        restartStreamAfterFailure(
+          audioStalled
+            ? "no decoded audio for " + radioStatus.audioAgeMs + " ms"
+            : "PCM rebuffer timeout"
+        );
+      }
     }
   });
 }

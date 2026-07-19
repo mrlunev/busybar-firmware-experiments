@@ -111,16 +111,24 @@ static size_t mp3_resample(
     return out_idx;
 }
 
-size_t mp3_decoder_decode(Mp3Decoder* dec, int16_t* out_buf, size_t out_buf_capacity) {
+static size_t mp3_decoder_decode_impl(
+    Mp3Decoder* dec,
+    int16_t* out_buf,
+    size_t out_buf_capacity,
+    bool drain) {
     if(dec->mp3_buf_fill < 4) return 0;
+    /* minimp3 needs several consecutive frames for reliable synchronization.
+     * Decoding every short TCP fragment can make it discard a partial frame as
+     * invalid data and prevents a starved live stream from ever recovering. */
+    if(!drain && dec->mp3_buf_fill < MP3_BUF_SIZE) return 0;
 
-    mp3dec_frame_info_t info;
+    mp3dec_frame_info_t info = {0};
     int samples = mp3dec_decode_frame(
         &dec->mp3dec, dec->mp3_buf, dec->mp3_buf_fill, dec->decode_pcm, &info);
 
     if(info.frame_bytes == 0) return 0;
 
-    if(info.frame_bytes > 0 && (uint32_t)info.frame_bytes <= dec->mp3_buf_fill) {
+    if((uint32_t)info.frame_bytes <= dec->mp3_buf_fill) {
         memmove(dec->mp3_buf, dec->mp3_buf + info.frame_bytes,
                 dec->mp3_buf_fill - info.frame_bytes);
         dec->mp3_buf_fill -= info.frame_bytes;
@@ -153,4 +161,12 @@ size_t mp3_decoder_decode(Mp3Decoder* dec, int16_t* out_buf, size_t out_buf_capa
     /* Resample to 44100 Hz */
     if(dec->src_rate == 0) dec->src_rate = MP3_OUTPUT_RATE;
     return mp3_resample(dec, mono_ptr, mono_count, out_buf, out_buf_capacity);
+}
+
+size_t mp3_decoder_decode(Mp3Decoder* dec, int16_t* out_buf, size_t out_buf_capacity) {
+    return mp3_decoder_decode_impl(dec, out_buf, out_buf_capacity, false);
+}
+
+size_t mp3_decoder_drain(Mp3Decoder* dec, int16_t* out_buf, size_t out_buf_capacity) {
+    return mp3_decoder_decode_impl(dec, out_buf, out_buf_capacity, true);
 }
