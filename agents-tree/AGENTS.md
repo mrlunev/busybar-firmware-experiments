@@ -1,0 +1,41 @@
+# BUSY Bar: start here
+
+Instructions for AI coding agents helping a person make something for BUSY Bar. This page only picks the
+instructions that fit. Pick one path below, open its document and follow it. Do not mix paths.
+
+## 1. Check first
+
+These checks only read; run them yourself before asking anything.
+
+- **Already in a BUSY Bar app project?** If the working folder has `src/appmeta/manifest.json`, read the project's
+  own `AGENTS.md` and follow it. If the person has no BUSY Bar and that file does not mention BUSY Bar Emulator,
+  also use the emulator's path from the table below, without its `create` step. Stop here.
+- **BUSY Bar on USB?** `curl -s -m 3 http://10.0.4.20/api/status/device` (in PowerShell: `curl.exe`). JSON with
+  `serial_number` means a BUSY Bar is connected. No answer means none on USB; the person may still have one on
+  Wi-Fi.
+- **BUSY Bar Emulator installed?** Its pointer file exists:
+  `~/Library/Application Support/BUSY Bar Emulator/install.json` on macOS,
+  `%LOCALAPPDATA%\BUSY Bar Emulator\install.json` on Windows.
+
+## 2. Ask only what the checks cannot tell
+
+- **What to make**, if the person did not say: an app that runs on BUSY Bar, a widget that runs on their computer,
+  or a change to the firmware. When unsure, it is an app.
+- **Whether they have a BUSY Bar**, if none answered on USB and they did not say: on Wi-Fi (ask its address), or
+  none.
+
+If there is nobody to ask, make an app: on BUSY Bar if one answered, otherwise on BUSY Bar Emulator.
+
+## 3. Paths
+
+| The person wants | BUSY Bar | Open and follow |
+|---|---|---|
+| An app that runs on BUSY Bar | on USB or Wi-Fi | [JS apps on BUSY Bar](https://github.com/busy-app/busybar-firmware/blob/dev/applications_js/AGENTS.md) |
+| An app that runs on BUSY Bar | none | [JS apps on BUSY Bar Emulator](https://github.com/mrlunev/busybar-firmware-experiments/blob/preview/agents-md-no-device/agents-tree/emulator.md) |
+| A widget: a program on their computer that shows things on BUSY Bar through its HTTP API | on USB or Wi-Fi | [Widget with AI](https://docs.busy.app/bar/dev/widget-with-ai), then [HTTP API](https://docs.busy.app/bar/dev/http-api) |
+| A change to the firmware itself | any | [Firmware](https://github.com/busy-app/busybar-firmware/blob/dev/AGENTS.md): clone the repository and work in it |
+
+An app is a JavaScript app that runs on BUSY Bar itself and goes to the app catalog. A widget runs elsewhere and
+needs that computer to stay on. Native firmware apps break official updates; build one only when asked to.
+
+Docs for people: [JS Apps Docs](https://go.busy.app/js-apps), [Emulator Docs](https://go.busy.app/busy-emulator-docs).
