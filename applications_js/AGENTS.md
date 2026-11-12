@@ -292,16 +292,7 @@ Do not design an app around an endpoint that is not on this list.
 
 This list mirrors [JavaScript Applications](../documentation/JavaScript%20Applications.dox.md#http-requests),
 which is authoritative. Check it if the two ever differ. Remote HTTP(S) resources can be fetched with the same
-`fetch` when Wi-Fi is connected. Handle network failures there without stopping the app:
-
-- A failed `fetch` rejects with a string, not an `Error`: `"socket error"`, `"Inactivity timeout"`.
-- Redirects are not followed: use the final `https://` address.
-- An HTTPS request takes about 1.5 s, HTTP about 0.1 s. 5 s without data ends a request with
-  `"Inactivity timeout"`.
-- With the template's 128 KiB heap (`heap_size_kib`), `res.json()` fits about 70 KiB of JSON and `res.text()`
-  about 120 KiB; more crashes the app. Ask for only the fields you show, or read a big body with
-  `res.body.getReader()`.
-- There is no `TextDecoder` or `TextEncoder`.
+`fetch` when Wi-Fi is connected. Handle network failures there without stopping the app.
 
 ## Design guidelines
 
