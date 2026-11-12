@@ -31,7 +31,7 @@ If there is nobody to ask, make an app: on BUSY Bar if one answered, otherwise o
 | The person wants | BUSY Bar | Open and follow |
 |---|---|---|
 | An app that runs on BUSY Bar | on USB or Wi-Fi | [JS apps on BUSY Bar](https://raw.githubusercontent.com/busy-app/busybar-firmware/dev/applications_js/AGENTS.md) |
-| An app that runs on BUSY Bar | none | [JS apps on BUSY Bar Emulator](https://cdn.busy.app/agents/emulator.txt) |
+| An app that runs on BUSY Bar | none | [JS apps on BUSY Bar Emulator](https://raw.githubusercontent.com/busy-app/busybar-emulator/main/AGENTS.md) |
 | A widget: a program on their computer that shows things on BUSY Bar through its HTTP API | on USB or Wi-Fi | [Widget with AI](https://docs.busy.app/bar/dev/widget-with-ai.md), then [HTTP API](https://docs.busy.app/bar/dev/http-api.md) |
 | A change to the firmware itself | any | [Firmware](https://raw.githubusercontent.com/busy-app/busybar-firmware/dev/AGENTS.md): clone the repository and work in it |
 
