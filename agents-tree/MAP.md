@@ -8,7 +8,7 @@ busy-tools, каталог и документы эмулятора. Подро�
 ## 1. Пути
 
 Вход: go.busy.app/agents. Сейчас он ведёт на HTML-страницу GitHub с `applications_js/AGENTS.md` (333 КБ вместо
-23 КБ чистого текста). Будет вести на `cdn.busy.app/agents/start.txt`.
+23 КБ чистого текста). Будет вести на `cdn.busy.app/agents.txt`.
 
 | Путь | Что агент читает по порядку | Где спотыкается |
 |---|---|---|
@@ -27,7 +27,7 @@ busy-tools, каталог и документы эмулятора. Подро�
 | docs.busy.app | На странице JS apps ссылка «busy-cli» ведёт на npm-пакет `busy-cli` другого автора (Bravo-Tensor, «CLI for BUSY document framework»). Наш пакет — `@busy-app/cli`. Проверено. | `npm i busy-cli` ставит чужой код |
 | docs.busy.app | widget-with-ai: `"font": "big"` в пяти примерах; допустимы `tiny`, `small`, `normal`, `condensed`, `bold`, `large`, `extra_large`, `global`, `superscript`. Проверено. Там же `°C`, хотя текст принимает только печатный ASCII. | скопированный пример BUSY Bar отклонит |
 | docs.busy.app | JS apps, build, manage-apps и FAQ пишут, что каталога нет или он «скоро». | хакатон на этих страницах |
-| go.busy.app | `/agents` перевести на `cdn.busy.app/agents/start.txt`; `/busy-emulator-docs` пока отдаёт 404. | вход для всех агентов |
+| go.busy.app | `/agents` перевести на `cdn.busy.app/agents.txt`; `/busy-emulator-docs` пока отдаёт 404. | вход для всех агентов |
 | busy-tools | `busy-cli create` по умолчанию берёт pnpm, но `packageManager` пишет только для Yarn 2+. Сборка каталога для pnpm-проекта требует `"packageManager": "pnpm@..."` (`tools/lib_build.py`), иначе `build_lockfile`. Проверено по коду обеих сторон; проекты на npm проходят. | заявки отвалятся на проверке |
 | прошивка, `applications_js/AGENTS.md` | `storage` числится доступным приложениям, но в 1.3.1 его нет в списке разрешённых (проверено по `api_root.c`: появился после 1.3.1). Нигде нет таблицы «эндпоинт с какой версии» и совета сначала проверить версию. | приложение работает в dev и падает на BUSY Bar участника |
 
