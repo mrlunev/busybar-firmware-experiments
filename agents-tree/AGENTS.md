@@ -32,7 +32,7 @@ If there is nobody to ask, make an app: on BUSY Bar if one answered, otherwise o
 |---|---|---|
 | An app that runs on BUSY Bar | on USB or Wi-Fi | [JS apps on BUSY Bar](https://github.com/busy-app/busybar-firmware/blob/dev/applications_js/AGENTS.md) |
 | An app that runs on BUSY Bar | none | [JS apps on BUSY Bar Emulator](https://github.com/mrlunev/busybar-firmware-experiments/blob/preview/agents-md-no-device/agents-tree/emulator.md) |
-| A widget: a program on their computer that shows things on BUSY Bar through its HTTP API | on USB or Wi-Fi | [Widget with AI](https://docs.busy.app/bar/dev/widget-with-ai), then [HTTP API](https://docs.busy.app/bar/dev/http-api) |
+| A widget: a program on their computer that shows things on BUSY Bar through its HTTP API | on USB or Wi-Fi | [Widget with AI](https://docs.busy.app/bar/dev/widget-with-ai.md), then [HTTP API](https://docs.busy.app/bar/dev/http-api.md) |
 | A change to the firmware itself | any | [Firmware](https://github.com/busy-app/busybar-firmware/blob/dev/AGENTS.md): clone the repository and work in it |
 
 An app is a JavaScript app that runs on BUSY Bar itself and goes to the app catalog. A widget runs elsewhere and
