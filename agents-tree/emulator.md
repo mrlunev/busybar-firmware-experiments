@@ -92,7 +92,7 @@ installed. It makes the folder itself: name a new one, not `.`. It takes the aut
 account, and makes the app's id from the author and the folder: do not ask for an author.
 
 **The new project's `AGENTS.md` starts with a section of the emulator's own. Read it and follow it.** It lists the
-commands for every step, the settings format and the network and memory limits, and it replaces `npm run …` in the
+commands for every step, the settings format and the network and memory limits, and it replaces `npm run ...` in the
 rest of that file and in the project's README. The loop, run from the project's folder, or with the folder as an
 argument (`<cli> dev my-app --once`):
 
