@@ -35,10 +35,11 @@ The user runs the app either on their own BUSY Bar or on BUSY Bar Emulator, whic
 their computer. If they have not said which, check, and ask if it is still unclear:
 
 - A BUSY Bar on USB answers `GET http://10.0.4.20/api/status/device`.
-- BUSY Bar Emulator is installed if its pointer file `install.json` exists ([below](#1-is-it-installed)).
+- BUSY Bar Emulator is installed if its pointer file names a command line that exists
+  ([below](#1-is-it-installed)).
 
 With a BUSY Bar, follow [Development loop](#development-loop). Without one, follow
-[No BUSY Bar: use the emulator](#no-busy-bar-use-the-emulator). Docs for people:
+[No BUSY Bar: use the emulator](#no-busy-bar-use-the-emulator). Docs:
 [JS Apps Docs](https://go.busy.app/js-apps), [Emulator Docs](https://go.busy.app/busy-emulator-docs).
 
 ## Development loop
@@ -123,8 +124,8 @@ them from the project folder to pick up the id and package automatically. Otherw
 app id explicitly.
 
 - Over USB the device is at `10.0.4.20` and no password is needed.
-- BUSY Bar Emulator's BUSY Bar is at `127.0.0.1:8640`, not `10.0.4.20`: use the emulator's own commands
-  ([below](#no-busy-bar-use-the-emulator)), or pass `--addr 127.0.0.1:8640` to `busy-cli`.
+- BUSY Bar Emulator answers at `127.0.0.1:8640`: use its own commands ([below](#no-busy-bar-use-the-emulator)),
+  or `--addr 127.0.0.1:8640` with `busy-cli`.
 - Over Wi-Fi pass `--addr <host>`, plus `--password <password>` if password protection is enabled, e.g.
   `npm run app:install -- --addr 192.168.1.42 --password secret`. HTTP API access over Wi-Fi must be enabled
   in the device web UI (**Network** → **HTTP API** → **Over Wi-Fi**).
@@ -136,26 +137,29 @@ app id explicitly.
 ## No BUSY Bar: use the emulator
 
 BUSY Bar Emulator is a desktop app for macOS (Apple Silicon and Intel) and Windows (x64). It runs the BUSY Bar
-firmware and has its own Node, npm and busy-tools. You drive it with its command line, `busy-emulator`. What this
-file says about writing the app holds; creating, building and running the app go through the emulator. Its BUSY Bar
-answers at `http://127.0.0.1:8640`, not `10.0.4.20`. How the emulator differs from a BUSY Bar:
-[Emulator Docs](https://go.busy.app/busy-emulator-docs).
+firmware at `127.0.0.1:8640` and has its own Node, npm and busy-tools. You drive it with its command line,
+`busy-emulator`. What this file says about writing the app holds; creating, building and running the app go through
+the emulator. How it differs from a BUSY Bar: [Emulator Docs](https://go.busy.app/busy-emulator-docs).
 
 ### Tell the user first
 
-Before you download or run anything, tell the user, in your own words, and wait for a yes:
+Before you download or run anything, tell the user the following and wait for a yes:
 
 - **What is downloaded, from where.** If the emulator is not installed: its install script (a few KB), the
   emulator (about 210 MB on macOS, 250 MB on Windows) and `SHA256SUMS`, from the releases of
   `github.com/busy-app/busybar-emulator`. Then `create` downloads the app template and its dependencies from the
   npm registry (about 110 MB).
-- **Where it goes.** `~/Applications` on macOS, `%LOCALAPPDATA%\Programs\BUSY Bar Emulator` on Windows. For this
-  user only: no administrator rights, no `sudo`, no system setting changed. The first releases are not notarized or
-  signed, and a file downloaded by a command skips the system's first-open warning: the checksum shows the download
-  is whole, HTTPS to github.com shows where it came from.
-- **What you will ask to be allowed.** To run the install script, and to run `busy-emulator`. Allowing
-  `busy-emulator` lets you start the emulator and build and run the project's code on this computer, outside your
-  sandbox too. To be asked only once, the user can allow that one command by its full path (step 1) in your tool's
+- **Where it goes.** For this user only, about 525 MB on macOS and 580 MB on Windows:
+  - the app: `~/Applications`, or `%LOCALAPPDATA%\Programs\BUSY Bar Emulator`;
+  - its data: `~/Library/Application Support/BUSY Bar Emulator`, or `%LOCALAPPDATA%\BUSY Bar Emulator`;
+  - its command line: `~/.busy-emulator/bin`, or `%LOCALAPPDATA%\busy-emulator\bin`.
+
+  No administrator rights, no `sudo`, no system setting changed. The first releases are not notarized or signed,
+  and a file downloaded by a command skips the system's first-open warning. The checksum proves the download is
+  complete; only HTTPS to github.com vouches for its origin.
+- **What you will ask to be allowed.** To run the install script, to read the pointer file (step 1), and to run
+  `busy-emulator` outside your sandbox. That lets you start the emulator and build and run the project's code on
+  this computer. To be asked only once, the user can allow that one command by its full path in your tool's
   permission rules.
 
 If the emulator is installed and the user has already allowed `busy-emulator`, there is nothing to wait for: say in
@@ -163,7 +167,7 @@ a line what `create` downloads and go on.
 
 ### 1. Is it installed?
 
-Look for the pointer file; `busy-emulator` is usually not on `PATH`:
+Read the pointer file; `busy-emulator` is usually not on `PATH`:
 
 - macOS: `~/Library/Application Support/BUSY Bar Emulator/install.json`
 - Windows: `%LOCALAPPDATA%\BUSY Bar Emulator\install.json`
@@ -172,15 +176,16 @@ Its field `cli` is the full path of the command line, `<cli>` below: `~/.busy-em
 `%LOCALAPPDATA%\busy-emulator\bin\busy-emulator.exe` on Windows. On Windows call it in PowerShell as
 `& "$env:LOCALAPPDATA\busy-emulator\bin\busy-emulator.exe"`, in Git Bash as
 `"$LOCALAPPDATA/busy-emulator/bin/busy-emulator.exe"`, in cmd as `"%LOCALAPPDATA%\busy-emulator\bin\busy-emulator.exe"`.
-If the file is there, go to step 3.
+
+If the file is there and the path in `cli` exists, go to step 3. Otherwise go to step 2: the install script also
+finds an app that was moved.
 
 ### 2. Install it
 
 Run the install script for the system, as one command. It checks the download against `SHA256SUMS` before anything
-is unpacked or run, picks the build for this Mac's processor, installs for the current user, starts the emulator and
-prints `cli=<path>` last.
+is unpacked or run, installs for the current user, starts the emulator and prints `cli=<path>` last.
 
-macOS:
+macOS (the script picks the build for the Mac's processor):
 
 ```sh
 curl -fsSL -o "$TMPDIR/busy-emulator-install.sh" https://github.com/busy-app/busybar-emulator/releases/latest/download/install-macos.sh && zsh "$TMPDIR/busy-emulator-install.sh"
@@ -189,13 +194,15 @@ curl -fsSL -o "$TMPDIR/busy-emulator-install.sh" https://github.com/busy-app/bus
 Windows, in PowerShell:
 
 ```powershell
-curl.exe -fsSL -o "$env:TEMP\busy-emulator-install.ps1" https://github.com/busy-app/busybar-emulator/releases/latest/download/install-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\busy-emulator-install.ps1"
+curl.exe -fsSL -o "$env:TEMP\busy-emulator-install.ps1" https://github.com/busy-app/busybar-emulator/releases/latest/download/install-windows.ps1; if ($LASTEXITCODE -eq 0) { powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\busy-emulator-install.ps1" }
 ```
+
+The emulator is now running: go to step 4.
 
 ### 3. Start it
 
-```sh
-~/.busy-emulator/bin/busy-emulator start
+```text
+<cli> start
 ```
 
 `start` opens the emulator's window and returns once its BUSY Bar answers; the emulator keeps running after you
@@ -212,13 +219,14 @@ finish. Start it this way, never with `open` or `Start-Process`. For every `busy
 <cli> create my-app --name "<App Name>" --description "<one line>"
 ```
 
-`create` makes the project from the official template (the same as `npm create @busy-app/app`), with its
-dependencies installed. It makes the folder itself: name a new one, not `.`. It takes the author from git, else
-from the user's account, and makes the app's id from the author and the folder: do not stop to ask for a name.
+`create` makes the project from the official template that `npm create @busy-app/app` uses, with its dependencies
+installed. It makes the folder itself: name a new one, not `.`. It takes the author from git, else from the user's
+account, and makes the app's id from the author and the folder: do not ask for an author.
 
 **The new project's `AGENTS.md` starts with a section of the emulator's own. Read it and follow it.** It lists the
 commands for every step, the settings format and the network and memory limits, and it replaces `npm run …` in the
-rest of that file and in the project's README. The loop, from the project's folder:
+rest of that file and in the project's README. The loop, run from the project's folder, or with the folder as an
+argument (`<cli> dev my-app --once`):
 
 ```text
 <cli> dev --once
@@ -230,28 +238,21 @@ rest of that file and in the project's README. The loop, from the project's fold
 <cli> typecheck
 ```
 
-`dev --once` builds, installs and starts the app: exit code 0 means it runs. Then open
-`screenshots/front-<n>@8x.png` and check that BUSY Bar shows what the user asked for; the emulated BUSY Bar runs at
-a real one's speed. Keep the project where `create` made it. When you are done, `<cli> stop` stops the app; leave
-the emulator running for the user.
+`dev --once` builds, installs and starts the app: exit code 0 means it runs. `screenshot` writes into `screenshots/`
+of the current folder (`--out` names another place); open `front-<n>@8x.png` and check that BUSY Bar shows what the
+user asked for. The emulator runs apps at a BUSY Bar's speed: what is slow here is slow on a BUSY Bar too. Keep the
+project where `create` made it. When you are done, `<cli> stop` stops the app; leave the emulator running for the
+user.
 
-### 5. What only the user does
-
-Ask the user, and never choose, confirm or tick for them:
-
-- trust a folder the emulator did not make: `<cli> trust <folder>` shows them a dialog;
-- sign in to GitHub and choose the account;
-- choose the license and how AI was used;
-- confirm the push and the pull request in the emulator's dialogs;
-- tick the catalog's checklist.
-
-`refused` means they chose Cancel: do not ask again. Sending the app to the catalog: `<cli> help publish`.
+Trusting a folder, signing in to GitHub, the license, how AI was used, the push, the pull request and the catalog's
+checklist are the user's: ask, and never choose, confirm or tick for them. `refused` or `trust_refused` means they
+chose Cancel: do not ask again. Sending the app to the catalog: `<cli> help publish`.
 
 ### If a command is refused
 
-- `blocked_network`, `blocked_file` or "Operation not permitted": your sandbox is in the way. Run the same command
-  again outside the sandbox, asking the user in the way your tool provides. The install script, `create` and the
-  first `build` need the same: they download and write outside the project.
+- `blocked_network`, `blocked_file` or "Operation not permitted": your sandbox is in the way. Every `busy-emulator`
+  command talks to `127.0.0.1` and writes to the emulator's data folder, so all of them run outside the sandbox;
+  ask the user in the way your tool provides. The install script and `create` also download.
 - If your permission rules refuse a command, do not look for a way around them: say which command was refused and
   ask the user to allow it.
 - `not_running`: run `<cli> start`.
@@ -297,8 +298,9 @@ which is authoritative. Check it if the two ever differ. Remote HTTP(S) resource
 - Redirects are not followed: use the final `https://` address.
 - An HTTPS request takes about 1.5 s, HTTP about 0.1 s. 5 s without data ends a request with
   `"Inactivity timeout"`.
-- With the default heap, `res.json()` fits about 70 KiB of JSON and `res.text()` about 120 KiB; more crashes the
-  app. Ask for only the fields you show, or read a big body with `res.body.getReader()`.
+- With the template's 128 KiB heap (`heap_size_kib`), `res.json()` fits about 70 KiB of JSON and `res.text()`
+  about 120 KiB; more crashes the app. Ask for only the fields you show, or read a big body with
+  `res.body.getReader()`.
 - There is no `TextDecoder` or `TextEncoder`.
 
 ## Design guidelines
