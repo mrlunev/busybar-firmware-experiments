@@ -50,6 +50,22 @@ needs that computer to stay on. Native firmware apps break official updates; bui
 - The tools are the npm packages `@busy-app/create-app`, `@busy-app/cli` and `@busy-app/busy-lib`. The npm
   package named plain `busy-cli` is not ours: never install it.
 
+## Known pitfalls
+
+Some documents are behind the tools. Until they are fixed:
+
+- **Catalog builds need npm or a pinned pnpm.** The catalog accepts `package-lock.json`, or `pnpm-lock.yaml` with
+  `"packageManager": "pnpm@<version>"` in `package.json`. `busy-cli create` picks pnpm and does not add that field:
+  choose npm, or add the field yourself. Yarn and Bun projects are refused.
+- **Settings:** `loadValues()` from the template's `@shared/settings` always returns `null`. Read
+  settings with `device.AppsSettingsGet({ app_id })` from `@busy-app/busy-lib`. Apps can read settings, not write
+  them, and read them only at start.
+- **busy-lib:** the installed version is 0.21.1 (`device.DisplayDraw`). The README on GitHub describes 1.0.0-rc.1
+  (`displayDraw`, `BusyBarAppClient`), which a new project does not have.
+- **busy-tools has no `AGENTS.md`.** Where a document says to read it, read the README and the new project's
+  `AGENTS.md` instead.
+- **docs.busy.app pages that say there is no app catalog yet are out of date.**
+
 ## More
 
 - Docs index for agents: https://docs.busy.app/llms.txt ; any docs.busy.app page also reads as Markdown with `.md`
